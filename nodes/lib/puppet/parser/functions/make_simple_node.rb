@@ -24,13 +24,12 @@ def create_resource_from_hash(scope, hash)
 end
 
 module Puppet::Parser::Functions
-  YAMLDIR = '/etc/puppet/node/'
-  newfunction(:make_node) do |args|
-    nodefile = File.join(YAMLDIR, "#{args[0]}.yml")
-      if FileTest.exist?(nodefile) && data = YAML.load_file(nodefile)
+  newfunction(:make_simple_node) do |args|
+    YAMLDIR = args[0]
+    nodefile = "#{args[0]}/foo.yml"
+    if FileTest.exist?(nodefile) && data = YAML.load_file(nodefile)
+        data['title'] = "foo"
         create_resource_from_hash self,data
-      else
-        return ''
       end
-  end
+    end
 end

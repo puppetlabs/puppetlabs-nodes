@@ -1,0 +1,4 @@
+--- 
+type: 'nodes::vmfusion'
+inventory_path: "/tmp"
+image: "/tmp/image"

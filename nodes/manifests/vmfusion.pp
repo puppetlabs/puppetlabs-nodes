@@ -1,5 +1,5 @@
-define node::vmfusion($inventory_path, $image, $enable = "running") {
-   Exec{ cwd => "/root" , path => "/usr/bin:/usr/sbin" }
+define nodes::vmfusion($inventory_path, $image, $enable = "running") {
+   Exec{ path => "/usr/bin:/usr/sbin:/Library/Application Support/VMware Fusion/" }
    File{ owner => root, mode => 644 }
 
    $vmxfile = "${inventory_path}/${name}/${name}.vmx"
@@ -7,9 +7,9 @@ define node::vmfusion($inventory_path, $image, $enable = "running") {
    file {
      # - copy of image (tarfile)
      "$inventory_path/$name":
-       source => "/vmstore/$image",
-       recurse => true,
-       replace => false;
+          source => $image,
+          recurse => true,
+          replace => false;
 
      # - vmx from template
      "$vmxfile":
@@ -20,7 +20,7 @@ define node::vmfusion($inventory_path, $image, $enable = "running") {
     "running": {
       # - vmrun start from vmx
      exec {"running-${name}":
-           command => "vmrun start $vmxfile",
+           command => "vmrun start $vmxfile nogui",
            unless =>  "vmrun list| grep $name",
            require => File["$vmxfile"]
       }
