@@ -28,10 +28,23 @@ def create_resource_from_hash(scope, hash)
   scope.compiler.add_resource(scope, resource)
 end
 
+def connect_to_dashboard()
+  Puppet[:config] = "/etc/puppet/puppet.conf"
+  Puppet.parse_config
+  cert = File.read(Puppet[:hostcert])
+  pem = File.read(Puppet[:hostprivkey])
+  ca = Puppet[:localcacert]
+  @dashboard_ssl = Net::HTTP.new(@dashboard_host, @dashboard_port)
+  @dashboard_ssl.use_ssl = true
+  @dashboard_ssl.cert = OpenSSL::X509::Certificate.new(cert)
+  @dashboard_ssl.key = OpenSSL::PKey::RSA.new(pem)
+  @dashboard_ssl.ca_file = ca
+  @dashboard_ssl.verify_mode = OpenSSL::SSL::VERIFY_PEER
+end
+
 def get_yaml_from_dashboard(node_name)
-  url = URI.parse("#{BASE}/nodes/#{node_name}")
-  req = Net::HTTP::Get.new(url.path, 'Accept' => 'text/yaml')
-  res = Net::HTTP.start(url.host, url.port) {|http| http.request(req) }
+  connect_to_dashboard()  unless @dashboard_ssl
+  res = @dashboard_ssl.start { @dashboard_ssl.request_get("/nodes/#{node_name}", 'Accept' => 'text/yaml')}
   YAML::load(res.body)
 end
 
@@ -67,10 +80,18 @@ def virtual_node_yaml_to_resource(virtual_node_yaml)
 end
 
 module Puppet::Parser::Functions
-  newfunction(:virtnodes) do 
-    node_name = lookupvar('fqdn')
-    function_notice(["Searching for nodes assigned to #{node_name}"])
-    physical_node_yaml = get_yaml_from_dashboard(node_name)
+  newfunction(:virtnodes) do |args| 
+    #
+    # This should be determinable from the puppet.conf options.
+    #
+    @dashboard_host = args[0]
+    @dashboard_port = args[1]
+    #
+    # Node name must be the certname
+    #
+    @node_name = args[2] 
+    function_notice(["Searching for nodes assigned to #{@node_name}"])
+    physical_node_yaml = get_yaml_from_dashboard(@node_name)
     virtual_node_yaml = get_virtual_from_physical(physical_node_yaml) 
     virtual_node_yaml_to_resource(virtual_node_yaml)
   end
